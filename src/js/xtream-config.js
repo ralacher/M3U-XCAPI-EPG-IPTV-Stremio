@@ -99,6 +99,10 @@
     }
 
     async function fetchTextBrowser(url, phaseLabel) {
+        // Avoid mixed content fetch attempts (HTTPS page -> HTTP resource) which browsers block.
+        if (window.location.protocol === 'https:' && /^http:\/\//i.test(url)) {
+            throw new Error('Mixed content blocked (forcing server prefetch fallback)');
+        }
         appendDetail(`→ (Browser) Fetching ${phaseLabel}: ${url}`);
         const res = await fetch(url, { method: 'GET' });
         if (!res.ok) throw new Error(`${phaseLabel} HTTP ${res.status}`);
@@ -123,11 +127,16 @@
         }
         if (!payload.ok || !payload.content) throw new Error('Server prefetch empty content');
         appendDetail(`✔ (Server) ${purpose} ${payload.bytes.toLocaleString()} bytes${payload.truncated ? ' (truncated)' : ''}`);
+        if (payload.truncated) {
+            throw new Error('Prefetch truncated: increase server PREFETCH_MAX_BYTES or reduce dataset (e.g. fetch categories incrementally)');
+        }
         return payload.content;
     }
 
     async function robustFetch(url, purpose, browserFirst = true) {
-        if (browserFirst) {
+    // If mixed content would occur, skip browser attempt.
+    const mixed = window.location.protocol === 'https:' && /^http:\/\//i.test(url);
+    if (browserFirst && !mixed) {
             try {
                 return await fetchTextBrowser(url, purpose);
             } catch (e) {

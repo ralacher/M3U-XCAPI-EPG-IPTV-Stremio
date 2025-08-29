@@ -367,16 +367,25 @@ select:focus {
 }
 
 .hint {
+    text-align: center;
     font-size: .64rem;
     letter-spacing: .4px;
     line-height: 1.1rem;
     color: var(--text-faint);
 }
 
+.checkbox-label {
+    vertical-align: super;
+}
+
 .req { color: var(--danger); }
 
+.bmc-btn-container {
+    text-align: center;
+}
+
 .checkbox-line {
-    display: inline-flex;
+    display: inline-block;
     align-items: center;
     gap: .55rem;
     font-size: .78rem;

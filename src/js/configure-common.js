@@ -110,6 +110,19 @@
                     setProgress(100, 'Ready');
                     appendDetail('Manifest ready.');
                     enableActionButtons(); // ENABLE ONLY HERE
+                    // Inject a Close button (success case) if not already present
+                    try {
+                        const status = document.getElementById('statusDetails');
+                        if (status && !document.getElementById('successCloseBtn')) {
+                            const btn = document.createElement('button');
+                            btn.id = 'successCloseBtn';
+                            btn.textContent = 'Close';
+                            btn.className = 'btn secondary';
+                            btn.style.marginTop = '14px';
+                            btn.addEventListener('click', hideOverlay);
+                            status.parentElement.appendChild(btn);
+                        }
+                    } catch (e) { /* ignore DOM injection errors */ }
                     if (!autoOpened) {
                         autoOpened = true;
                         // Do not force-open if user might want to copy first.

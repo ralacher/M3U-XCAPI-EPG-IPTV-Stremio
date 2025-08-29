@@ -70,65 +70,119 @@ async function fetchData(addonInstance) {
     } else {
         // JSON API mode
         const base = `${xtreamUrl}/player_api.php?username=${encodeURIComponent(xtreamUsername)}&password=${encodeURIComponent(xtreamPassword)}`;
+        // Fetch streams + category lists in parallel to map category_id -> category_name
+        const [liveResp, vodResp, liveCatsResp, vodCatsResp] = await Promise.all([
+            fetch(`${base}&action=get_live_streams`, { timeout: 30000 }),
+            fetch(`${base}&action=get_vod_streams`, { timeout: 30000 }),
+            fetch(`${base}&action=get_live_categories`, { timeout: 20000 }).catch(() => null),
+            fetch(`${base}&action=get_vod_categories`, { timeout: 20000 }).catch(() => null)
+        ]);
 
-        const liveResp = await fetch(`${base}&action=get_live_streams`, { timeout: 30000 });
         if (!liveResp.ok) throw new Error('Xtream live streams fetch failed');
-        const live = await liveResp.json();
-
-        const vodResp = await fetch(`${base}&action=get_vod_streams`, { timeout: 30000 });
         if (!vodResp.ok) throw new Error('Xtream VOD streams fetch failed');
+        const live = await liveResp.json();
         const vod = await vodResp.json();
 
-        addonInstance.channels = (Array.isArray(live) ? live : []).map(s => ({
-            id: `iptv_live_${s.stream_id}`,
-            name: s.name,
-            type: 'tv',
-            url: `${xtreamUrl}/live/${xtreamUsername}/${xtreamPassword}/${s.stream_id}.m3u8`,
-            logo: s.stream_icon,
-            category: s.category_name,
-            epg_channel_id: s.epg_channel_id,
-            attributes: {
-                'tvg-logo': s.stream_icon,
-                'tvg-id': s.epg_channel_id,
-                'group-title': s.category_name
+        let liveCatMap = {};
+        let vodCatMap = {};
+        try {
+            if (liveCatsResp && liveCatsResp.ok) {
+                const arr = await liveCatsResp.json();
+                if (Array.isArray(arr)) {
+                    for (const c of arr) {
+                        if (c && c.category_id && c.category_name)
+                            liveCatMap[c.category_id] = c.category_name;
+                    }
+                }
             }
-        }));
+        } catch { /* ignore */ }
+        try {
+            if (vodCatsResp && vodCatsResp.ok) {
+                const arr = await vodCatsResp.json();
+                if (Array.isArray(arr)) {
+                    for (const c of arr) {
+                        if (c && c.category_id && c.category_name)
+                            vodCatMap[c.category_id] = c.category_name;
+                    }
+                }
+            }
+        } catch { /* ignore */ }
 
-        addonInstance.movies = (Array.isArray(vod) ? vod : []).map(s => ({
-            id: `iptv_vod_${s.stream_id}`,
-            name: s.name,
-            type: 'movie',
-            url: `${xtreamUrl}/movie/${xtreamUsername}/${xtreamPassword}/${s.stream_id}.${s.container_extension}`,
-            poster: s.stream_icon,
-            plot: s.plot,
-            year: s.releasedate ? new Date(s.releasedate).getFullYear() : null,
-            attributes: {
-                'tvg-logo': s.stream_icon,
-                'group-title': 'Movies',
-                'plot': s.plot
-            }
-        }));
+        addonInstance.channels = (Array.isArray(live) ? live : []).map(s => {
+            const cat = liveCatMap[s.category_id] || s.category_name || s.category_id || 'Live';
+            return {
+                id: `iptv_live_${s.stream_id}`,
+                name: s.name,
+                type: 'tv',
+                url: `${xtreamUrl}/live/${xtreamUsername}/${xtreamPassword}/${s.stream_id}.m3u8`,
+                logo: s.stream_icon,
+                category: cat,
+                epg_channel_id: s.epg_channel_id,
+                attributes: {
+                    'tvg-logo': s.stream_icon,
+                    'tvg-id': s.epg_channel_id,
+                    'group-title': cat
+                }
+            };
+        });
+
+        addonInstance.movies = (Array.isArray(vod) ? vod : []).map(s => {
+            const cat = vodCatMap[s.category_id] || s.category_name || 'Movies';
+            return {
+                id: `iptv_vod_${s.stream_id}`,
+                name: s.name,
+                type: 'movie',
+                url: `${xtreamUrl}/movie/${xtreamUsername}/${xtreamPassword}/${s.stream_id}.${s.container_extension}`,
+                poster: s.stream_icon,
+                plot: s.plot,
+                year: s.releasedate ? new Date(s.releasedate).getFullYear() : null,
+                category: cat,
+                attributes: {
+                    'tvg-logo': s.stream_icon,
+                    'group-title': cat,
+                    'plot': s.plot
+                }
+            };
+        });
 
         if (config.includeSeries !== false) {
             try {
-                const seriesResp = await fetch(`${base}&action=get_series`, { timeout: 30000 });
+                const [seriesResp, seriesCatsResp] = await Promise.all([
+                    fetch(`${base}&action=get_series`, { timeout: 35000 }),
+                    fetch(`${base}&action=get_series_categories`, { timeout: 20000 }).catch(() => null)
+                ]);
+                let seriesCatMap = {};
+                try {
+                    if (seriesCatsResp && seriesCatsResp.ok) {
+                        const arr = await seriesCatsResp.json();
+                        if (Array.isArray(arr)) {
+                            for (const c of arr) {
+                                if (c && c.category_id && c.category_name)
+                                    seriesCatMap[c.category_id] = c.category_name;
+                            }
+                        }
+                    }
+                } catch { /* ignore */ }
                 if (seriesResp.ok) {
                     const seriesList = await seriesResp.json();
                     if (Array.isArray(seriesList)) {
-                        addonInstance.series = seriesList.map(s => ({
-                            id: `iptv_series_${s.series_id}`,
-                            series_id: s.series_id,
-                            name: s.name,
-                            type: 'series',
-                            poster: s.cover,
-                            plot: s.plot,
-                            category: s.category_name,
-                            attributes: {
-                                'tvg-logo': s.cover,
-                                'group-title': s.category_name,
-                                'plot': s.plot
-                            }
-                        }));
+                        addonInstance.series = seriesList.map(s => {
+                            const cat = seriesCatMap[s.category_id] || s.category_name || 'Series';
+                            return {
+                                id: `iptv_series_${s.series_id}`,
+                                series_id: s.series_id,
+                                name: s.name,
+                                type: 'series',
+                                poster: s.cover,
+                                plot: s.plot,
+                                category: cat,
+                                attributes: {
+                                    'tvg-logo': s.cover,
+                                    'group-title': cat,
+                                    'plot': s.plot
+                                }
+                            };
+                        });
                     }
                 }
             } catch (e) {
