@@ -1,4 +1,9 @@
+/* Stremio‑inspired Theme for M3U/EPG Addon Configuration
+   Palette tuned to resemble Stremio default (dark violet gradients & purple accent)
+   ------------------------------------------------------------------------------ */
+
 :root {
+    /* Core Surfaces */
     --bg: #12131a;
     --bg-alt: #161823;
     --bg-panel: #1d1f2b;
@@ -6,16 +11,19 @@
     --bg-soft: #202331;
     --overlay-bg: rgba(14,16,24,0.78);
 
+    /* Borders / Lines */
     --border: #2d3140;
     --border-alt: #373c4e;
     --border-focus: #9e7dff;
 
+    /* Typography */
     --text: #ffffff;
     --text-dim: #b3b8c7;
     --text-faint: #7d8494;
     --font-stack: system-ui,-apple-system,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans",Arial,sans-serif;
     --mono-stack: ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 
+    /* Accent / Semantic */
     --accent: #8f61ff;
     --accent-accent2: #c58cff;
     --accent-hover: #a77dff;
@@ -26,6 +34,7 @@
     --danger-hover: #ea3d55;
     --warning: #ffb347;
 
+    /* Radii & Shadows */
     --radius-xs: 3px;
     --radius-sm: 5px;
     --radius-md: 9px;
@@ -36,11 +45,13 @@
 
     --transition: .18s cubic-bezier(.4,0,.2,1);
 
+    /* Scrollbars */
     --scroll-track: #181a24;
     --scroll-thumb: #32384a;
     --scroll-thumb-hover: #40485d;
 }
 
+/* Global Reset */
 * { box-sizing: border-box; }
 
 html, body {
@@ -61,6 +72,7 @@ body {
     flex-direction: column;
 }
 
+/* Scrollbars */
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--scroll-thumb) var(--scroll-track);
@@ -81,6 +93,7 @@ body {
     background: var(--scroll-thumb-hover);
 }
 
+/* Header */
 .site-header {
     padding: 2.6rem 1.4rem 2.2rem;
     background:
@@ -127,6 +140,7 @@ body {
     opacity: .9;
 }
 
+/* Navigation */
 .top-nav {
     display: flex;
     gap: .65rem;
@@ -151,6 +165,7 @@ body {
     border-color: rgba(255,255,255,0.3);
 }
 
+/* Layout */
 .main-content {
     flex: 1 0 auto;
     max-width: 1080px;
@@ -167,6 +182,7 @@ body {
     grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
 }
 
+/* Panels / Cards */
 .option-card,
 .config-form,
 .info-panel {
@@ -223,6 +239,7 @@ body {
     color: #d7d9e5;
 }
 
+/* Feature / Step Lists */
 .feature-list,
 .steps {
     list-style: none;
@@ -276,6 +293,7 @@ body {
     border-radius: 999px;
 }
 
+/* Forms */
 .config-form {
     display: flex;
     flex-direction: column;
@@ -474,6 +492,7 @@ select:focus {
 }
 .btn.wide { width: 100%; }
 
+/* Disabled state */
 .btn[disabled],
 .btn.locked,
 .btn[aria-disabled="true"] {
@@ -486,6 +505,7 @@ select:focus {
     filter: grayscale(20%);
 }
 
+/* Footer */
 .site-footer {
     background: #101117;
     border-top: 1px solid #1d2029;
@@ -497,6 +517,7 @@ select:focus {
     letter-spacing: .5px;
 }
 
+/* Overlay */
 .overlay {
     position: fixed;
     inset: 0;
@@ -613,8 +634,10 @@ select:focus {
 }
 .overlay-actions .btn { flex: 1 1 210px; }
 
+/* Utility */
 .hidden { display: none !important; }
 
+/* Responsive Tweaks */
 @media (max-width: 780px) {
     .site-header { padding: 2.3rem 1.05rem 1.9rem; }
     .main-content { padding: 1.9rem 1.05rem 3rem; }
@@ -626,6 +649,7 @@ select:focus {
     .nav-link { font-size: .7rem; }
 }
 
+/* Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(14px); }
     to { opacity: 1; transform: translateY(0); }

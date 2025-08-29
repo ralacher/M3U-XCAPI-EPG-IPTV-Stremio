@@ -1,3 +1,4 @@
+// Shared overlay & manifest polling logic (enhanced + strict disabling of action buttons until manifest ready)
 (function () {
     const overlay         = document.getElementById('loaderOverlay');
     const progressBar     = document.getElementById('progressBar');
@@ -7,6 +8,7 @@
     const copyBtn         = document.getElementById('copyManifestBtn');
     const openBtn         = document.getElementById('openStremioBtn');
 
+    // Polling / timing constants
     const POLL_INTERVAL_MS     = 1500;
     const MAX_WAIT_MS          = 90000;
     const PROGRESS_ESTIMATE_MS = 45000;
@@ -20,17 +22,19 @@
     let baselinePct    = 0;
     let ready          = false;
 
+    /* -------- Utility UI helpers -------- */
+
     function disableActionButtons() {
         if (openBtn) {
             openBtn.disabled = true;
             openBtn.classList.add('locked');
-            openBtn.style.display = 'none';
+            openBtn.style.display = 'none'; // HIDE until ready
 
         }
         if (copyBtn) {
             copyBtn.disabled = true;
             copyBtn.classList.add('locked');
-            copyBtn.style.display = 'none';
+            copyBtn.style.display = 'none'; // HIDE until ready
         }
     }
 
@@ -38,12 +42,12 @@
         if (openBtn) {
             openBtn.disabled = false;
             openBtn.classList.remove('locked');
-            openBtn.style.display = '';
+            openBtn.style.display = ''; // SHOW when ready
         }
         if (copyBtn) {
             copyBtn.disabled = false;
             copyBtn.classList.remove('locked');
-            copyBtn.style.display = '';
+            copyBtn.style.display = ''; // SHOW when ready
         }
     }
 
@@ -54,7 +58,7 @@
         statusDetails && (statusDetails.textContent = '');
         autoOpened = false;
         ready = false;
-        disableActionButtons();
+        disableActionButtons(); // ALWAYS ensure disabled on open
     }
 
     function hideOverlay() {
@@ -84,12 +88,15 @@
         return 'Almost done…';
     }
 
+    /* -------- Polling logic -------- */
+
     function attemptPoll() {
-        if (manualPhase) return;
+        if (manualPhase) return; // Pre-flight still running client-side
         if (ready) return;
 
         const elapsed = Date.now() - startTime;
 
+        // Synthetic progress up to baseline + 95%
         if (progressBar && parseFloat(progressBar.style.width) < baselinePct + 95) {
             const synthetic = baselinePct + Math.min(95, (elapsed / PROGRESS_ESTIMATE_MS) * 95);
             setProgress(synthetic, progressMessage(elapsed));
@@ -102,9 +109,12 @@
                     ready = true;
                     setProgress(100, 'Ready');
                     appendDetail('Manifest ready.');
-                    enableActionButtons();
+                    enableActionButtons(); // ENABLE ONLY HERE
                     if (!autoOpened) {
                         autoOpened = true;
+                        // Do not force-open if user might want to copy first.
+                        // To auto-open uncomment next line:
+                        // window.location.href = stremioUrl;
                     }
                     if (pollTimer) clearTimeout(pollTimer);
                     return;
@@ -120,6 +130,7 @@
             loaderMessage.textContent = 'Taking longer than expected.';
             appendDetail('Timeout waiting for manifest. You may retry or open later.');
             setProgress(100, 'Timeout');
+            // Still allow user to copy / open after timeout
             enableActionButtons();
             return;
         }
@@ -130,9 +141,11 @@
         baselinePct = startPct;
         manualPhase = false;
         startTime = Date.now();
-        disableActionButtons();
+        disableActionButtons(); // Ensure still disabled when entering polling
         attemptPoll();
     }
+
+    /* -------- Clipboard / events -------- */
 
     function copyManifest() {
         if (!manifestUrl || copyBtn.disabled) return;
@@ -157,6 +170,8 @@
     if (copyBtn) copyBtn.addEventListener('click', copyManifest);
     if (openBtn) openBtn.addEventListener('click', openInStremio);
 
+    /* -------- Token / URL builder -------- */
+
     function encodeConfigBase64Url(config) {
         const json = JSON.stringify(config);
         let b64 = btoa(unescape(encodeURIComponent(json)));
@@ -172,6 +187,8 @@
         return { token, manifestUrl, stremioUrl };
     }
 
+    /* -------- Public API -------- */
+
     window.ConfigureCommon = {
         showOverlay,
         hideOverlay,
@@ -180,6 +197,7 @@
         overlaySetMessage(msg) { loaderMessage.textContent = msg; },
         setProgress,
         appendDetail,
+        // For direct-config pre-flight to re-disable if needed
         forceDisableActions: disableActionButtons
     };
 })();

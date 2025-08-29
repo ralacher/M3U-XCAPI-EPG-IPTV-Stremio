@@ -15,20 +15,6 @@
 
 ---
 
-## 🧭 Changelog (Summary)
-
-| Version | Highlights |
-|---------|------------|
-| 1.6.0 | Major overhaul! Fixed multiple ui rendering issues and parsing logic, Fixed alot of performance issue, New UI and much more... |
-| 1.5.0 | Added support for users to host on vercel and run in docker |
-| 1.4.0 | Added function to manage EPG Offset in addon config |
-| 1.3.0 | Added new loader ui and copy manifest button |
-| 1.2.0 | Cache toggle env, separated assets, encryption endpoint refinement |
-| 1.1.x | Encrypted configs, Redis + LRU caching, password masking |
-| 1.0.0 | Initial release, M3U + EPG + Xtream support, dynamic config |
-
-(See commit history for detailed changes.)
-
 ## 🎬 Demo Flow (How Users Install)
 
 1. Visit your hosted base URL (`https://your-host/`)

@@ -1,3 +1,5 @@
+// Server for IPTV Stremio Addon (with debug + prefetch proxy to bypass browser CORS for pre-flight)
+// Updated: Fixed prefetch stream handling (node-fetch readable stream -> chunk accumulation, no getReader()).
 require('dotenv').config();
 
 const { getRouter } = require('stremio-addon-sdk');
@@ -45,6 +47,7 @@ app.use((req, res, next) => {
     next();
 });
 
+// Encryption endpoint
 app.post('/encrypt', (req, res) => {
     if (!process.env.CONFIG_SECRET) {
         return res.status(400).json({ error: 'Encryption not enabled on server (CONFIG_SECRET missing)' });
@@ -59,6 +62,11 @@ app.post('/encrypt', (req, res) => {
     }
 });
 
+/**
+ * Prefetch endpoint: server-side fetch to bypass browser CORS for playlist / EPG pre-flight.
+ * SECURITY: Basic SSRF protections included (blocks local/private networks).
+ * NOTE: For production, consider a stricter allowlist or DNS/IP resolution checks.
+ */
 app.post('/api/prefetch', async (req, res) => {
     if (!PREFETCH_ENABLED) return res.status(403).json({ error: 'Prefetch disabled by server' });
 
@@ -104,7 +112,7 @@ app.post('/api/prefetch', async (req, res) => {
         }
 
         // Accumulate stream with a byte limit
-        const reader = fetched.body;
+        const reader = fetched.body; // Node.js readable stream
         const chunks = [];
         let received = 0;
         let truncated = false;
@@ -116,6 +124,7 @@ app.post('/api/prefetch', async (req, res) => {
                     chunks.push(chunk);
                 } else {
                     truncated = true;
+                    // Stop reading further; destroy stream.
                     reader.destroy();
                 }
             });
@@ -125,7 +134,7 @@ app.post('/api/prefetch', async (req, res) => {
         });
 
         let content = Buffer.concat(chunks).toString('utf8');
-        if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+        if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1); // strip BOM
 
         dlog('Prefetch done', { bytes: received, truncated, returnedBytes: Buffer.byteLength(content) });
 
@@ -145,6 +154,7 @@ app.post('/api/prefetch', async (req, res) => {
     }
 });
 
+// Root & configuration pages
 app.get('/', (req, res) => {
     res.sendFile(path.join(staticDir, 'index.html'));
 });
@@ -175,6 +185,7 @@ function isConfigToken(token) {
     return true;
 }
 
+// Legacy redirect
 app.get('/:token/configure', (req, res) => {
     const { token } = req.params;
     if (!isConfigToken(token)) return res.status(400).json({ error: 'Invalid configuration' });
@@ -203,6 +214,7 @@ app.get('/:token/configure-xtream', (req, res) => {
     });
 });
 
+// Token interface middleware
 app.use('/:token', async (req, res, next) => {
     const { token } = req.params;
     if (!isConfigToken(token)) return next('route');
@@ -252,6 +264,7 @@ app.use('/:token', async (req, res, next) => {
     next();
 });
 
+// Logo proxy
 app.get('/:token/logo/:tvgId.png', async (req, res) => {
     if (!req.addonInterface) {
         return res.redirect(`https://via.placeholder.com/300x400/333333/FFFFFF?text=${encodeURIComponent(req.params.tvgId)}`);
@@ -287,6 +300,7 @@ app.get('/:token/logo/:tvgId.png', async (req, res) => {
     res.redirect(`https://via.placeholder.com/300x400/333333/FFFFFF?text=${encodeURIComponent(noCountry.toUpperCase().slice(0, 12))}`);
 });
 
+// Stremio router
 app.use('/:token', (req, res) => {
     const iface = req.addonInterface;
     if (!iface) return res.status(500).json({ error: 'Interface not ready' });

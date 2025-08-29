@@ -1,3 +1,5 @@
+// direct-config.js (client pre-flight with CORS fallback via server /api/prefetch)
+// Updated: If EPG fetch (browser + server) fails, continue WITHOUT EPG instead of aborting.
 (function () {
     const form = document.getElementById('directForm');
     if (!form) {
@@ -157,6 +159,7 @@
 
         let enableEpgFinal = enableEpgInitial;
         try {
+            // 1. Fetch Playlist
             setProgress(10, 'Fetching Playlist');
             let playlistText;
             try {
@@ -166,16 +169,19 @@
                 playlistText = await robustFetch(m3uUrl, 'playlist', false);
             }
 
+            // 2. Parse M3U
             setProgress(28, 'Parsing Playlist');
             const items = parseM3U(playlistText);
             if (!items.length) throw new Error('Empty playlist after parse');
 
+            // Stats
             const approxMovies = items.filter(i =>
                 /movie/i.test(i.name) || /\(\d{4}\)/.test(i.name)
             ).length;
             const approxTv = items.length - approxMovies;
             appendDetail(`Heuristic: ~${approxTv} TV / ~${approxMovies} Movie`);
 
+            // 3. Optional EPG (non-fatal)
             let epgStats = { programmes: 0, channels: 0 };
             if (enableEpgInitial && epgUrl) {
                 let epgTxt = null;
@@ -204,6 +210,7 @@
                 appendDetail('EPG disabled by user.');
             }
 
+            // 4. Build config token
             setProgress(60, 'Building token');
             const config = {
                 provider: 'direct',
@@ -229,6 +236,7 @@
             appendDetail('Manifest URL: ' + manifestUrl);
             appendDetail('Stremio URL: ' + stremioUrl);
 
+            // 5. Start manifest polling
             setProgress(70, 'Waiting for manifest');
             appendDetail('== SERVER BUILD PHASE ==');
             appendDetail('Polling server…');

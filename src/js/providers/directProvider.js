@@ -1,3 +1,8 @@
+// directProvider.js
+// Adds Direct M3U fetching with series detection & per-episode grouping.
+// Series grouping heuristic looks for SxxEyy or "Season" patterns.
+// Episodes are stored in addonInstance.directSeriesEpisodeIndex for quick meta/stream resolution.
+
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 
@@ -16,12 +21,16 @@ function baseSeriesName(raw) {
 }
 
 function extractSeasonEpisode(title) {
+    // Returns { season, episode } or null
     let m = title.match(/\bS(\d{1,2})E(\d{1,2})\b/i);
     if (m) return { season: parseInt(m[1], 10), episode: parseInt(m[2], 10) };
+    // Alternate "Season X Episode Y"
     m = title.match(/\bSeason\s?(\d{1,2}).*?\bEpisode\s?(\d{1,3})\b/i);
     if (m) return { season: parseInt(m[1], 10), episode: parseInt(m[2], 10) };
+    // Alternate "Season X Ep Y"
     m = title.match(/\bSeason\s?(\d{1,2}).*?\bEp\s?(\d{1,3})\b/i);
     if (m) return { season: parseInt(m[1], 10), episode: parseInt(m[2], 10) };
+    // "Sx Exx" compressed? (rare) Already covered by SNNENN pattern above.
     return null;
 }
 
@@ -34,9 +43,10 @@ async function fetchData(addonInstance) {
     addonInstance.channels = [];
     addonInstance.movies = [];
     addonInstance.series = [];
-    addonInstance.directSeriesEpisodeIndex = new Map();
+    addonInstance.directSeriesEpisodeIndex = new Map(); // reset
     addonInstance.epgData = {};
 
+    // Fetch playlist
     let playlistText;
     {
         const controller = new AbortController();
@@ -55,18 +65,21 @@ async function fetchData(addonInstance) {
 
     const items = addonInstance.parseM3U(playlistText);
 
+    // Separate by type (already heuristically assigned in parseM3U)
     addonInstance.channels = items.filter(i => i.type === 'tv');
     addonInstance.movies = items.filter(i => i.type === 'movie');
 
     if (config.includeSeries !== false) {
+        // Build episode grouping from items of type 'series'
         const episodeItems = items.filter(i => i.type === 'series');
-        const seriesMap = new Map();
-        const episodesMap = new Map();
+        const seriesMap = new Map(); // baseName -> series meta
+        const episodesMap = new Map(); // seriesId -> episodes array
 
         for (const ep of episodeItems) {
             const baseName = baseSeriesName(ep.name);
             if (!baseName) continue;
 
+            // Determine season/episode
             const se = extractSeasonEpisode(ep.name) || { season: 1, episode: 0 };
             const seriesHash = hash(baseName);
             const seriesId = `iptv_series_${seriesHash}`;
@@ -103,6 +116,7 @@ async function fetchData(addonInstance) {
             });
         }
 
+        // Sort episodes in each series
         for (const [sid, eps] of episodesMap.entries()) {
             eps.sort((a, b) => (a.season - b.season) || (a.episode - b.episode));
             addonInstance.directSeriesEpisodeIndex.set(sid.replace(/^iptv_series_/, ''), eps);
@@ -111,6 +125,7 @@ async function fetchData(addonInstance) {
         addonInstance.series = Array.from(seriesMap.values());
     }
 
+    // EPG (optional)
     if (config.enableEpg && config.epgUrl) {
         try {
             const controller = new AbortController();
@@ -135,7 +150,9 @@ async function fetchData(addonInstance) {
 }
 
 async function fetchSeriesInfo(addonInstance, seriesId) {
+    // For direct provider we already have episodes in directSeriesEpisodeIndex
     if (!seriesId) return { videos: [] };
+    // Accept either raw or with prefix
     const normalized = seriesId.toString().replace(/^iptv_series_/, '');
     const episodes = addonInstance.directSeriesEpisodeIndex.get(normalized) || [];
     return { videos: episodes, fetchedAt: Date.now() };

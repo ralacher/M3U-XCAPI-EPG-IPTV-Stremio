@@ -1,3 +1,5 @@
+// IPTV Stremio Addon Core (with debug logging + series (shows) support for BOTH Xtream & Direct M3U)
+// Version 1.4.0: Adds Direct M3U series grouping + per‑episode streams
 require('dotenv').config();
 
 const { addonBuilder } = require("stremio-addon-sdk");
@@ -73,7 +75,7 @@ function createCacheKey(config) {
         xtreamUseM3U: !!config.xtreamUseM3U,
         xtreamOutput: config.xtreamOutput,
         epgOffsetHours: config.epgOffsetHours,
-        includeSeries: config.includeSeries !== false
+        includeSeries: config.includeSeries !== false // default true
     };
     return crypto.createHash('md5').update(stableStringify(minimal)).digest('hex');
 }
@@ -88,14 +90,15 @@ class M3UEPGAddon {
         this.manifestRef = manifestRef;
         this.cacheKey = createCacheKey(config);
         this.updateInterval = 3600000;
-        this.channels = [];
-        this.movies = [];
-        this.series = [];
-        this.seriesInfoCache = new Map();
+        this.channels = []; // live TV
+        this.movies = [];   // VOD movies
+        this.series = [];   // Series (shows)
+        this.seriesInfoCache = new Map(); // seriesId -> { videos: [...], fetchedAt }
         this.epgData = {};
         this.lastUpdate = 0;
         this.log = makeLogger(config.debug);
 
+        // Direct provider may populate this (seriesId -> episodes array)
         this.directSeriesEpisodeIndex = new Map();
 
         if (typeof this.config.epgOffsetHours === 'string') {
@@ -131,6 +134,7 @@ class M3UEPGAddon {
             this.series = cached.series || [];
             this.epgData = cached.epgData || {};
             this.lastUpdate = cached.lastUpdate || 0;
+            // Direct series episodes index is not persisted; rebuild on next fetch
             this.log.debug('Cache hit for data', {
                 channels: this.channels.length,
                 movies: this.movies.length,
@@ -372,6 +376,7 @@ class M3UEPGAddon {
         } catch (e) {
             this.log.warn('Series info fetch failed', seriesId, e.message);
         }
+        // Fallback empty structure
         const empty = { videos: [] };
         this.seriesInfoCache.set(seriesId, empty);
         return empty;
@@ -453,6 +458,7 @@ class M3UEPGAddon {
     }
 
     getStream(id) {
+        // Episode streams
         if (id.startsWith('iptv_series_ep_')) {
             const epEntry = this.lookupEpisodeById(id);
             if (!epEntry) return null;
@@ -473,12 +479,14 @@ class M3UEPGAddon {
     }
 
     lookupEpisodeById(epId) {
+        // Check cached series info
         for (const [, info] of this.seriesInfoCache.entries()) {
             if (info && Array.isArray(info.videos)) {
                 const found = info.videos.find(v => v.id === epId);
                 if (found) return found;
             }
         }
+        // Direct provider inline index
         for (const arr of this.directSeriesEpisodeIndex.values()) {
             const found = arr.find(v => v.id === epId);
             if (found) return found;
@@ -519,6 +527,7 @@ class M3UEPGAddon {
             if (!seriesItem) return null;
             return await this.buildSeriesMeta(seriesItem);
         }
+        // fallback sync path
         return this.getDetailedMeta(id);
     }
 
@@ -578,7 +587,7 @@ class M3UEPGAddon {
 async function createAddon(config) {
     const manifest = {
         id: ADDON_ID,
-        version: "1.6.0",
+        version: "1.8.0",
         name: ADDON_NAME,
         description: "IPTV addon (M3U / EPG / Xtream) with encrypted configs, caching & series support (Xtream + Direct)",
         resources: ["catalog", "stream", "meta"],
