@@ -3,26 +3,23 @@
 // Supports custom EPG or panel XMLTV; failing both attempts disables EPG gracefully.
 
 (function () {
-    const form             = document.getElementById('xtreamForm');
+    const form = document.getElementById('xtreamForm');
     if (!form) {
         console.error('[XTREAM-CONFIG] #xtreamForm not found');
         return;
     }
 
-    const xtreamUrlInput   = document.getElementById('xtreamUrl');
-    const userInput        = document.getElementById('xtreamUsername');
-    const pwdInput         = document.getElementById('xtreamPassword');
-    const togglePwdBtn     = document.getElementById('togglePwd');
-    const useM3UChk        = document.getElementById('xtreamUseM3U');
-    const outputInput      = document.getElementById('xtreamOutput');
-    const outputGroup      = document.getElementById('xtreamOutputGroup');
-    const enableEpgChk     = document.getElementById('enableEpg');
-    const epgOffsetInput   = document.getElementById('epgOffsetHours');
-    const debugChk         = document.getElementById('debugMode');
-    const customEpgGroup   = document.getElementById('customEpgGroup');
-    const customEpgUrlInp  = document.getElementById('customEpgUrl');
+    const xtreamUrlInput = document.getElementById('xtreamUrl');
+    const userInput = document.getElementById('xtreamUsername');
+    const pwdInput = document.getElementById('xtreamPassword');
+    const togglePwdBtn = document.getElementById('togglePwd');
+    const enableEpgChk = document.getElementById('enableEpg');
+    const epgOffsetInput = document.getElementById('epgOffsetHours');
+    const debugChk = document.getElementById('debugMode');
+    const customEpgGroup = document.getElementById('customEpgGroup');
+    const customEpgUrlInp = document.getElementById('customEpgUrl');
 
-    const epgModeRadios    = () => [...document.querySelectorAll('input[name="epgMode"]')];
+    const epgModeRadios = () => [...document.querySelectorAll('input[name="epgMode"]')];
 
     const {
         showOverlay,
@@ -43,12 +40,6 @@
 
     if (typeof prefillIfReconfigure === 'function')
         prefillIfReconfigure('xtream');
-
-    function syncOutputVisibility() {
-        if (outputGroup) {
-            outputGroup.classList.toggle('hidden', !useM3UChk.checked);
-        }
-    }
 
     function selectedEpgMode() {
         const r = epgModeRadios().find(r => r.checked);
@@ -71,11 +62,6 @@
                 togglePwdBtn.textContent = 'Show';
             }
         });
-    }
-
-    if (useM3UChk) {
-        useM3UChk.addEventListener('change', syncOutputVisibility);
-        syncOutputVisibility();
     }
 
     enableEpgChk.addEventListener('change', syncCustomEpgVisibility);
@@ -134,9 +120,9 @@
     }
 
     async function robustFetch(url, purpose, browserFirst = true) {
-    // If mixed content would occur, skip browser attempt.
-    const mixed = window.location.protocol === 'https:' && /^http:\/\//i.test(url);
-    if (browserFirst && !mixed) {
+        // If mixed content would occur, skip browser attempt.
+        const mixed = window.location.protocol === 'https:' && /^http:\/\//i.test(url);
+        if (browserFirst && !mixed) {
             try {
                 return await fetchTextBrowser(url, purpose);
             } catch (e) {
@@ -146,46 +132,9 @@
         return await fetchTextServer(url, purpose);
     }
 
-    function parseM3U(content) {
-        const start = performance.now();
-        const lines = content.split('\n');
-        const items = [];
-        let current = null;
-        let processed = 0;
-        for (const raw of lines) {
-            const line = raw.trim();
-            if (line.startsWith('#EXTINF:')) {
-                const m = line.match(/#EXTINF:(-?\d+)(?:\s+(.*))?,(.*)/);
-                if (m) {
-                    current = {
-                        duration: parseInt(m[1]),
-                        attrs: parseAttrs(m[2] || ''),
-                        name: (m[3] || '').trim()
-                    };
-                }
-            } else if (line && !line.startsWith('#') && current) {
-                current.url = line;
-                items.push(current);
-                current = null;
-            }
-            processed++;
-            if (processed % 1500 === 0) appendDetail(`… parsed ${processed}/${lines.length}`);
-        }
-        appendDetail(`✔ Playlist parsed: ${items.length} entries (${(performance.now() - start).toFixed(1)} ms)`);
-        return items;
-    }
-
-    function parseAttrs(str) {
-        const out = {};
-        const r = /(\w+(?:-\w+)*)="([^"]*)"/g;
-        let m;
-        while ((m = r.exec(str)) !== null) out[m[1]] = m[2];
-        return out;
-    }
-
     function quickEpgStats(xml) {
         const prog = xml.match(/<programme\s/gi);
-        const ch   = xml.match(/<channel\s/gi);
+        const ch = xml.match(/<channel\s/gi);
         return {
             programmes: prog ? prog.length : 0,
             channels: ch ? ch.length : 0
@@ -202,7 +151,7 @@
         try {
             const enc = new TextEncoder().encode(str);
             const digest = await crypto.subtle.digest('SHA-256', enc);
-            const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2,'0')).join('');
+            const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
             return hex.slice(0, 10) + '…';
         } catch {
             return '(hash-unavailable)';
@@ -212,17 +161,15 @@
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const baseUrlRaw  = xtreamUrlInput.value.trim();
-        const baseUrl     = normalizedBaseUrl(baseUrlRaw);
-        const username    = userInput.value.trim();
-        let password      = pwdInput.value;
-        const useM3U      = useM3UChk.checked;
-        const outputFmt   = outputInput.value.trim();
+        const baseUrlRaw = xtreamUrlInput.value.trim();
+        const baseUrl = normalizedBaseUrl(baseUrlRaw);
+        const username = userInput.value.trim();
+        let password = pwdInput.value;
         const enableEpgInitial = enableEpgChk.checked;
-        const epgMode     = enableEpgInitial ? selectedEpgMode() : 'disabled';
-        const customEpg   = (epgMode === 'custom') ? customEpgUrlInp.value.trim() : '';
-        const epgOffset   = epgOffsetInput.value ? parseFloat(epgOffsetInput.value) : 0;
-        const debug       = !!(debugChk && debugChk.checked);
+        const epgMode = enableEpgInitial ? selectedEpgMode() : 'disabled';
+        const customEpg = (epgMode === 'custom') ? customEpgUrlInp.value.trim() : '';
+        const epgOffset = epgOffsetInput.value ? parseFloat(epgOffsetInput.value) : 0;
+        const debug = !!(debugChk && debugChk.checked);
 
         if (!validateUrl(baseUrl)) {
             alert('Invalid Xtream base URL');
@@ -253,82 +200,58 @@
         setProgress(5, 'Starting');
         appendDetail('== PRE-FLIGHT (XTREAM) ==');
         appendDetail(`Base URL: ${baseUrl}`);
-        appendDetail(`Mode: ${useM3U ? 'M3U (m3u_plus)' : 'JSON API'}`);
+        appendDetail(`Mode: 'JSON API'}`);
         appendDetail(`EPG Mode: ${enableEpgInitial ? (epgMode === 'custom' ? 'Custom URL' : 'Panel XMLTV') : 'Disabled'}`);
         appendDetail(`Debug logging: ${debug ? 'enabled' : 'disabled'}`);
 
         let enableEpgFinal = enableEpgInitial;
         try {
             let liveCount = 0;
-            let vodCount  = 0;
+            let vodCount = 0;
             let categories = new Set();
             let epgStats = { programmes: 0, channels: 0 };
 
-            if (useM3U) {
-                setProgress(12, 'Fetching Playlist');
-                const m3uEndpoint =
-                    `${baseUrl}/get.php?username=${encodeURIComponent(username)}` +
-                    `&password=${encodeURIComponent(password)}` +
-                    `&type=m3u_plus` +
-                    (outputFmt ? `&output=${encodeURIComponent(outputFmt)}` : '');
-                let playlist;
-                try {
-                    playlist = await robustFetch(m3uEndpoint, 'playlist', true);
-                } catch (firstErr) {
-                    appendDetail(`⚠ Initial playlist fetch failed: ${firstErr.message}`);
-                    playlist = await robustFetch(m3uEndpoint, 'playlist', false);
-                }
-                setProgress(28, 'Parsing Playlist');
-                const items = parseM3U(playlist);
-                if (!items.length) throw new Error('Empty playlist (m3u_plus)');
-                for (const it of items) {
-                    const cat = it.attrs && (it.attrs['group-title'] || '').trim();
-                    if (cat) categories.add(cat);
-                }
-                liveCount = items.filter(i => !/movie/i.test(i.name) && !/\(\d{4}\)/.test(i.name)).length;
-                vodCount  = items.length - liveCount;
-                appendDetail(`Heuristic: ~${liveCount} live / ~${vodCount} vod`);
-            } else {
-                const base = `${baseUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-                setProgress(12, 'Fetching Live Streams');
-                let liveJsonText;
-                try {
-                    liveJsonText = await robustFetch(`${base}&action=get_live_streams`, 'live_streams', true);
-                } catch (lErr) {
-                    appendDetail(`⚠ Live streams browser fetch failed: ${lErr.message}`);
-                    liveJsonText = await robustFetch(`${base}&action=get_live_streams`, 'live_streams', false);
-                }
-                let liveList = [];
-                try { liveList = JSON.parse(liveJsonText); } catch { throw new Error('Failed to parse live streams JSON'); }
-                liveCount = Array.isArray(liveList) ? liveList.length : 0;
-                appendDetail(`✔ Live streams: ${liveCount.toLocaleString()}`);
 
-                setProgress(28, 'Fetching VOD Streams');
-                let vodJsonText;
-                try {
-                    vodJsonText = await robustFetch(`${base}&action=get_vod_streams`, 'vod_streams', true);
-                } catch (vErr) {
-                    appendDetail(`⚠ VOD browser fetch failed: ${vErr.message}`);
-                    vodJsonText = await robustFetch(`${base}&action=get_vod_streams`, 'vod_streams', false);
-                }
-                let vodList = [];
-                try { vodList = JSON.parse(vodJsonText); } catch { throw new Error('Failed to parse VOD streams JSON'); }
-                vodCount = Array.isArray(vodList) ? vodList.length : 0;
-                appendDetail(`✔ VOD streams: ${vodCount.toLocaleString()}`);
+            const base = `${baseUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+            setProgress(12, 'Fetching Live Streams');
+            let liveJsonText;
+            try {
+                liveJsonText = await robustFetch(`${base}&action=get_live_streams`, 'live_streams', true);
+            } catch (lErr) {
+                appendDetail(`⚠ Live streams browser fetch failed: ${lErr.message}`);
+                liveJsonText = await robustFetch(`${base}&action=get_live_streams`, 'live_streams', false);
+            }
+            let liveList = [];
+            try { liveList = JSON.parse(liveJsonText); } catch { throw new Error('Failed to parse live streams JSON'); }
+            liveCount = Array.isArray(liveList) ? liveList.length : 0;
+            appendDetail(`✔ Live streams: ${liveCount.toLocaleString()}`);
 
-                if (Array.isArray(liveList)) {
-                    for (const l of liveList) {
-                        const c = l.category_name || l.category || '';
-                        if (c) categories.add(c);
-                    }
-                }
-                if (Array.isArray(vodList)) {
-                    for (const v of vodList) {
-                        const c = v.category_name || v.category || '';
-                        if (c) categories.add(c);
-                    }
+            setProgress(28, 'Fetching VOD Streams');
+            let vodJsonText;
+            try {
+                vodJsonText = await robustFetch(`${base}&action=get_vod_streams`, 'vod_streams', true);
+            } catch (vErr) {
+                appendDetail(`⚠ VOD browser fetch failed: ${vErr.message}`);
+                vodJsonText = await robustFetch(`${base}&action=get_vod_streams`, 'vod_streams', false);
+            }
+            let vodList = [];
+            try { vodList = JSON.parse(vodJsonText); } catch { throw new Error('Failed to parse VOD streams JSON'); }
+            vodCount = Array.isArray(vodList) ? vodList.length : 0;
+            appendDetail(`✔ VOD streams: ${vodCount.toLocaleString()}`);
+
+            if (Array.isArray(liveList)) {
+                for (const l of liveList) {
+                    const c = l.category_name || l.category || '';
+                    if (c) categories.add(c);
                 }
             }
+            if (Array.isArray(vodList)) {
+                for (const v of vodList) {
+                    const c = v.category_name || v.category || '';
+                    if (c) categories.add(c);
+                }
+            }
+
 
             // EPG (non-fatal)
             if (enableEpgInitial) {
@@ -368,8 +291,7 @@
                 enableEpg: enableEpgFinal,
                 debug: debug || undefined
             };
-            if (useM3U) config.xtreamUseM3U = true;
-            if (useM3U && outputFmt) config.xtreamOutput = outputFmt;
+
             if (enableEpgFinal && epgMode === 'custom' && customEpgUrlInp.value.trim()) {
                 config.epgUrl = customEpgUrlInp.value.trim();
             }
@@ -381,7 +303,7 @@
                 categoryCount: categories.size,
                 epgProgrammes: enableEpgFinal ? epgStats.programmes : 0,
                 epgChannels: enableEpgFinal ? epgStats.channels : 0,
-                mode: useM3U ? 'm3u_plus' : 'json',
+                mode: 'json',
                 epgSource: enableEpgFinal
                     ? (epgMode === 'custom' ? 'custom' : 'xtream')
                     : 'disabled'
