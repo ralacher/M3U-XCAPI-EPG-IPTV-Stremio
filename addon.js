@@ -161,52 +161,30 @@ class M3UEPGAddon {
 
     buildGenresInManifest() {
         if (!this.manifestRef) return;
-        const tvCatalog = this.manifestRef.catalogs.find(c => c.id === 'iptv_channels');
-        const movieCatalog = this.manifestRef.catalogs.find(c => c.id === 'iptv_movies');
-        const seriesCatalog = this.manifestRef.catalogs.find(c => c.id === 'iptv_series');
-
-        if (tvCatalog) {
-            const groups = [
-                ...new Set(
-                    this.channels
-                        .map(c => c.category || c.attributes?.['group-title'])
-                        .filter(Boolean)
-                        .map(s => s.trim())
-                )
-            ].sort((a, b) => a.localeCompare(b));
-            if (!groups.includes('All Channels')) groups.unshift('All Channels');
-            tvCatalog.genres = groups;
-        }
-
-        if (movieCatalog) {
-            const movieGroups = [
-                ...new Set(
-                    this.movies
-                        .map(c => c.category || c.attributes?.['group-title'])
-                        .filter(Boolean)
-                        .map(s => s.trim())
-                )
-            ].sort((a, b) => a.localeCompare(b));
-            movieCatalog.genres = movieGroups;
-        }
-
-        if (seriesCatalog) {
-            const seriesGroups = [
-                ...new Set(
-                    this.series
-                        .map(c => c.category || c.attributes?.['group-title'])
-                        .filter(Boolean)
-                        .map(s => s.trim())
-                )
-            ].sort((a, b) => a.localeCompare(b));
-            seriesCatalog.genres = seriesGroups;
-        }
-
-        this.log.debug('Catalog genres built', {
-            tvGenres: tvCatalog?.genres?.length || 0,
-            movieGenres: movieCatalog?.genres?.length || 0,
-            seriesGenres: seriesCatalog?.genres?.length || 0
+        this.log.debug('Building TV genres for catalog');
+        const groups = [
+            ...new Set(
+                this.channels
+                    .map(c => c.category || c.attributes?.['group-title'])
+                    .filter(Boolean)
+                    .map(s => s.trim())
+            )
+        ].sort((a, b) => a.localeCompare(b));
+        if (!groups.includes('All Channels')) groups.unshift('All Channels');
+        const catalogs = this.manifestRef.catalogs;
+        // Add each group to the catalog 
+        groups.forEach(g => {
+            this.log.debug('Adding TV genre to catalog:', g);
+            // replace all special characters, spaces, and leave only alphanumeric and underscores
+            var safeGenreId = g.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+            catalogs.push({
+                type: 'tv',
+                id: `iptv_${safeGenreId}`,
+                name: g,
+                extra: [{ name: 'search' }, { name: 'skip' }],
+            });
         });
+        this.log.debug('Catalog genres built');
     }
 
     parseM3U(content) {
@@ -230,24 +208,7 @@ class M3UEPGAddon {
                 currentItem.logo = currentItem.attributes['tvg-logo'];
                 currentItem.epg_channel_id = currentItem.attributes['tvg-id'] || currentItem.attributes['tvg-name'];
                 currentItem.category = currentItem.attributes['group-title'];
-
-                const group = (currentItem.attributes['group-title'] || '').toLowerCase();
-                const lower = currentItem.name.toLowerCase();
-
-                const isMovie =
-                    group.includes('movie') ||
-                    lower.includes('movie') ||
-                    this.isMovieFormat(currentItem.name);
-
-                const isSeries =
-                    !isMovie && (
-                        group.includes('series') ||
-                        group.includes('show') ||
-                        /\bS\d{1,2}E\d{1,2}\b/i.test(currentItem.name) ||
-                        /\bSeason\s?\d+/i.test(currentItem.name)
-                    );
-
-                currentItem.type = isSeries ? 'series' : (isMovie ? 'movie' : 'tv');
+                currentItem.type = 'tv';
                 currentItem.id = `iptv_${crypto.createHash('md5').update(currentItem.name + currentItem.url).digest('hex').substring(0, 16)}`;
                 items.push(currentItem);
                 currentItem = null;
@@ -591,30 +552,8 @@ async function createAddon(config) {
         name: ADDON_NAME,
         description: "IPTV addon (M3U / EPG / Xtream) with encrypted configs, caching & series support (Xtream + Direct)",
         resources: ["catalog", "stream", "meta"],
-        types: ["tv", "movie", "series"],
-        catalogs: [
-            {
-                type: 'tv',
-                id: 'iptv_channels',
-                name: 'IPTV Channels',
-                extra: [{ name: 'genre' }, { name: 'search' }, { name: 'skip' }],
-                genres: []
-            },
-            {
-                type: 'movie',
-                id: 'iptv_movies',
-                name: 'IPTV Movies',
-                extra: [{ name: 'search' }, { name: 'skip' }],
-                genres: []
-            },
-            {
-                type: 'series',
-                id: 'iptv_series',
-                name: 'IPTV Series',
-                extra: [{ name: 'genre' }, { name: 'search' }, { name: 'skip' }],
-                genres: []
-            }
-        ],
+        types: ["tv"],
+        catalogs: [],
         idPrefixes: ["iptv_"],
         behaviorHints: {
             configurable: true,
