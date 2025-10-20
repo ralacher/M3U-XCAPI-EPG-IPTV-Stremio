@@ -179,7 +179,7 @@ class M3UEPGAddon {
             var safeGenreId = g.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
             catalogs.push({
                 type: 'tv',
-                id: `iptv_${safeGenreId}`,
+                id: g,
                 name: g,
                 extra: [{ name: 'search' }, { name: 'skip' }],
             });
@@ -589,14 +589,10 @@ async function createAddon(config) {
             try {
                 addonInstance.updateData().catch(() => { });
                 let items = [];
-                if (args.type === 'tv' && args.id === 'iptv_channels') {
+                if (args.type === 'tv') {
                     items = addonInstance.channels;
-                } else if (args.type === 'movie' && args.id === 'iptv_movies') {
-                    items = addonInstance.movies;
-                } else if (args.type === 'series' && args.id === 'iptv_series') {
-                    if (addonInstance.config.includeSeries !== false)
-                        items = addonInstance.series;
                 }
+
                 const extra = args.extra || {};
                 if (extra.genre && extra.genre !== 'All Channels') {
                     items = items.filter(i =>
@@ -604,6 +600,7 @@ async function createAddon(config) {
                         (i.attributes && i.attributes['group-title'] === extra.genre)
                     );
                 }
+
                 if (extra.search) {
                     const q = extra.search.toLowerCase();
                     items = items.filter(i => i.name.toLowerCase().includes(q));
