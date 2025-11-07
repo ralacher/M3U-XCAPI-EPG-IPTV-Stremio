@@ -234,7 +234,15 @@ async function createAddon(config) {
         description: "IPTV addon (M3U / EPG / Xtream) with encrypted configs, caching & series support (Xtream + Direct)",
         resources: ["catalog", "stream", "meta"],
         types: ["tv"],
-        catalogs: [],
+        catalogs: [
+            {
+                type: 'tv',
+                id: 'iptv_channels',
+                name: 'IPTV Channels',
+                extra: [{ name: 'genre' }, { name: 'search' }, { name: 'skip' }],
+                genres: []
+            }
+        ],
         idPrefixes: ["iptv_"],
         behaviorHints: {
             configurable: true,
