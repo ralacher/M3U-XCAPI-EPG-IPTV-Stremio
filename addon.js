@@ -91,32 +91,11 @@ class M3UEPGAddon {
         this.cacheKey = createCacheKey(config);
         this.updateInterval = 3600000;
         this.channels = []; // live TV
-        this.movies = [];   // VOD movies
-        this.series = [];   // Series (shows)
-        this.seriesInfoCache = new Map(); // seriesId -> { videos: [...], fetchedAt }
-        this.epgData = {};
         this.lastUpdate = 0;
         this.log = makeLogger(config.debug);
-
-        // Direct provider may populate this (seriesId -> episodes array)
-        this.directSeriesEpisodeIndex = new Map();
-
-        if (typeof this.config.epgOffsetHours === 'string') {
-            const n = parseFloat(this.config.epgOffsetHours);
-            if (!isNaN(n)) this.config.epgOffsetHours = n;
-        }
-        if (typeof this.config.epgOffsetHours !== 'number' || !isFinite(this.config.epgOffsetHours))
-            this.config.epgOffsetHours = 0;
-        if (Math.abs(this.config.epgOffsetHours) > 48)
-            this.config.epgOffsetHours = 0;
-        if (typeof this.config.includeSeries === 'undefined')
-            this.config.includeSeries = true;
-
         this.log.debug('Addon instance created', {
             provider: this.providerName,
             cacheKey: this.cacheKey,
-            epgOffsetHours: this.config.epgOffsetHours,
-            includeSeries: this.config.includeSeries
         });
     }
 
