@@ -171,6 +171,7 @@ class M3UEPGAddon {
         this.log.debug('Catalog genres built', {
             tvGenres: tvCatalog?.genres?.length || 0,
         });
+        this.log.debug('Catalog genres built');
     }
 
     parseM3U(content) {
@@ -253,30 +254,8 @@ async function createAddon(config) {
         name: ADDON_NAME,
         description: "IPTV addon (M3U / EPG / Xtream) with encrypted configs, caching & series support (Xtream + Direct)",
         resources: ["catalog", "stream", "meta"],
-        types: ["tv", "movie", "series"],
-        catalogs: [
-            {
-                type: 'tv',
-                id: 'iptv_channels',
-                name: 'IPTV Channels',
-                extra: [{ name: 'genre' }, { name: 'search' }, { name: 'skip' }],
-                genres: []
-            },
-            {
-                type: 'movie',
-                id: 'iptv_movies',
-                name: 'IPTV Movies',
-                extra: [{ name: 'search' }, { name: 'skip' }],
-                genres: []
-            },
-            {
-                type: 'series',
-                id: 'iptv_series',
-                name: 'IPTV Series',
-                extra: [{ name: 'genre' }, { name: 'search' }, { name: 'skip' }],
-                genres: []
-            }
-        ],
+        types: ["tv"],
+        catalogs: [],
         idPrefixes: ["iptv_"],
         behaviorHints: {
             configurable: true,
@@ -312,14 +291,10 @@ async function createAddon(config) {
             try {
                 addonInstance.updateData().catch(() => { });
                 let items = [];
-                if (args.type === 'tv' && args.id === 'iptv_channels') {
+                if (args.type === 'tv') {
                     items = addonInstance.channels;
-                } else if (args.type === 'movie' && args.id === 'iptv_movies') {
-                    items = addonInstance.movies;
-                } else if (args.type === 'series' && args.id === 'iptv_series') {
-                    if (addonInstance.config.includeSeries !== false)
-                        items = addonInstance.series;
                 }
+
                 const extra = args.extra || {};
                 if (extra.genre && extra.genre !== 'All Channels') {
                     items = items.filter(i =>
@@ -327,6 +302,7 @@ async function createAddon(config) {
                         (i.attributes && i.attributes['group-title'] === extra.genre)
                     );
                 }
+
                 if (extra.search) {
                     const q = extra.search.toLowerCase();
                     items = items.filter(i => i.name.toLowerCase().includes(q));
