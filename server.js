@@ -11,7 +11,7 @@ const createAddon = require('./addon');
 const { encryptConfig, tryParseConfigToken } = require('./cryptoConfig');
 const LRUCache = require('./lruCache');
 
-const DEBUG = (process.env.DEBUG_MODE || '').toLowerCase() === 'true';
+const DEBUG = 'true';
 function dlog(...args) {
     if (DEBUG) console.log('[DEBUG]', ...args);
 }
